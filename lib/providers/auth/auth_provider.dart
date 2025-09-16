@@ -1,3 +1,5 @@
+// ignore_for_file: use_build_context_synchronously
+
 import 'package:e_hrm/contraints/colors.dart';
 import 'package:e_hrm/contraints/endpoints.dart';
 import 'package:e_hrm/dto/auth/getdataprivate.dart';

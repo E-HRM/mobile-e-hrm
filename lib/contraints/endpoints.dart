@@ -12,13 +12,24 @@ class Endpoints {
   static const String resetConfirm = "$baseURL/mobile/auth/reset-password";
 
   //location
-  static const String location = "$baseURL/mobile/location";
+  static const String location = "$baseURL/admin/location";
 
   //departements
   static const String departements = "$baseURL/mobile/departements";
 
   //getuser
   static const String users = "$baseURL/mobile/users";
+
+  //get-approvers
+  static const String getApprovers = "$baseURL/admin/approvers";
+
+  //get-agenda
+  static const String agenda = "$baseURL/mobile/agenda";
+  //detail-agenda
+  static String agendaDetail(String id) => "$agenda/$id";
+
+  //get-agendakerja
+  static String agendaKerja = "$baseURL/mobile/agenda-kerja";
 
   //post-enrollface
   static const String faceEnroll = "$faceBaseURL/api/face/enroll";
@@ -28,4 +39,9 @@ class Endpoints {
 
   //get-face
   static const String getFace = "$faceBaseURL/api/face";
+
+  //absensi
+  static String get absensiCheckin => "$faceBaseURL/api/absensi/checkin";
+  static String get absensiCheckout => "$faceBaseURL/api/absensi/checkout";
+  static String get absensiStatus => "/api/absensi/status";
 }

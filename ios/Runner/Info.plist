@@ -31,6 +31,8 @@
 	<key>UISupportedInterfaceOrientations</key>
 	<key>NSCameraUsageDescription</key>
 	<string>Kamera digunakan untuk pengambilan foto wajah.</string>
+	<key>NSLocationWhenInUseUsageDescription</key>
+	<string>App membutuhkan lokasi untuk verifikasi area absensi.</string>
 	<array>
 		<string>UIInterfaceOrientationPortrait</string>
 		<string>UIInterfaceOrientationLandscapeLeft</string>

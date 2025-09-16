@@ -1,6 +1,8 @@
 // lib/screens/face/face_enroll_screen.dart
 // Screen untuk enroll wajah: 1x take foto, kirim via FaceEnrollProvider.
 
+// ignore_for_file: deprecated_member_use
+
 import 'dart:io';
 import 'package:flutter/material.dart';
 import 'package:image_picker/image_picker.dart';

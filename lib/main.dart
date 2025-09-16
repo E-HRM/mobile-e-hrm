@@ -1,3 +1,5 @@
+import 'package:e_hrm/providers/absensi/absensi_provider.dart';
+import 'package:e_hrm/providers/approvers/approvers_provider.dart';
 import 'package:e_hrm/providers/auth/auth_provider.dart';
 import 'package:e_hrm/providers/auth/reset_password_provider.dart';
 import 'package:e_hrm/providers/departements/departements_provider.dart';
@@ -6,6 +8,7 @@ import 'package:e_hrm/providers/users/users_provider.dart';
 import 'package:e_hrm/screens/auth/login/login_screen.dart';
 import 'package:e_hrm/screens/auth/reset_password/reset_password_screen.dart';
 import 'package:e_hrm/screens/opening/opening_screen.dart';
+import 'package:e_hrm/screens/users/agenda_kerja/agenda_kerja_screen.dart';
 import 'package:e_hrm/screens/users/home/home_screen.dart';
 import 'package:e_hrm/screens/users/profile/profile_screen.dart';
 import 'package:e_hrm/services/auth_wrapper.dart';
@@ -15,8 +18,15 @@ import 'package:e_hrm/screens/face/face_enroll_screen/face_enroll_screen.dart';
 import 'package:e_hrm/services/api_services.dart';
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
+import 'package:intl/intl.dart';
+import 'package:intl/date_symbol_data_local.dart';
 
-void main() {
+Future<void> main() async {
+  WidgetsFlutterBinding.ensureInitialized();
+  // Inisialisasi data locale (Indonesia)
+  await initializeDateFormatting('id_ID', null);
+  Intl.defaultLocale = 'id_ID'; // opsional, biar default Indonesia
+
   runApp(const MyApp());
 }
 
@@ -32,8 +42,9 @@ class MyApp extends StatelessWidget {
         ChangeNotifierProvider(create: (_) => LocationProvider()),
         ChangeNotifierProvider(create: (_) => DepartementProvider()),
         ChangeNotifierProvider(create: (_) => UserDetailProvider()),
-        // Provider for face enrollment. This manages state when enrolling a face.
         ChangeNotifierProvider(create: (_) => FaceEnrollProvider(ApiService())),
+        ChangeNotifierProvider(create: (_) => AbsensiProvider()),
+        ChangeNotifierProvider(create: (_) => ApproversProvider()),
       ],
       child: MaterialApp(
         title: 'E-HRM',
@@ -50,10 +61,9 @@ class MyApp extends StatelessWidget {
             final args = ModalRoute.of(context)?.settings.arguments;
             // Expecting a String userId; if missing, fallback to empty string to avoid crash.
             final userId = (args is String) ? args : '';
-            return AuthWrapper(
-              child: FaceEnrollScreen(userId: userId),
-            );
+            return AuthWrapper(child: FaceEnrollScreen(userId: userId));
           },
+          '/agenda-kerja': (context) => AuthWrapper(child: AgendaKerjaScreen()),
         },
       ),
     );

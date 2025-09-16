@@ -1,3 +1,5 @@
+// ignore_for_file: use_build_context_synchronously
+
 import 'package:e_hrm/contraints/colors.dart';
 import 'package:e_hrm/providers/auth/reset_password_provider.dart';
 import 'package:e_hrm/screens/auth/reset_password/widget/button_get_token.dart';

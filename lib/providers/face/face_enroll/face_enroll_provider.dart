@@ -1,12 +1,10 @@
-// ignore_for_file: unnecessary_this
+// ignore_for_file: unnecessary_this, unnecessary_cast
 import 'dart:io';
-
 import 'package:flutter/foundation.dart';
 import 'package:http/http.dart' as http;
 import 'package:http_parser/http_parser.dart';
 import 'package:device_info_plus/device_info_plus.dart';
 import 'package:package_info_plus/package_info_plus.dart';
-
 import 'package:e_hrm/contraints/endpoints.dart';
 import 'package:e_hrm/services/api_services.dart';
 import 'package:e_hrm/dto/face/enroll_face/enroll_face.dart';
@@ -113,13 +111,13 @@ class FaceEnrollProvider extends ChangeNotifier {
     } else if (Platform.isWindows) {
       final w = await deviceInfo.windowsInfo;
       platform = 'windows';
-      osVersion = '${w.productName} ${w.displayVersion ?? ''}'.trim();
+      osVersion = '${w.productName} ${w.displayVersion}'.trim();
       deviceLabel = w.computerName;
     } else if (Platform.isLinux) {
       final l = await deviceInfo.linuxInfo;
       platform = 'linux';
-      osVersion = l.version ?? l.prettyName ?? 'Linux';
-      deviceLabel = l.name ?? 'Linux';
+      osVersion = l.version ?? l.prettyName;
+      deviceLabel = l.name;
     } else {
       platform = Platform.operatingSystem;
       osVersion = Platform.operatingSystemVersion;

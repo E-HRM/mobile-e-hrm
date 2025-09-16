@@ -27,6 +27,7 @@ class LocationProvider extends ChangeNotifier {
   String sort = 'desc'; // 'asc' atau 'desc'
 
   void _setLoading(bool v) {
+    if (loading == v) return; // ⬅️ guard
     loading = v;
     notifyListeners();
   }

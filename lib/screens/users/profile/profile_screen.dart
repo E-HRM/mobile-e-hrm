@@ -1,4 +1,6 @@
 // lib/screens/users/profile/profile_screen.dart
+// ignore_for_file: use_build_context_synchronously
+
 import 'dart:io';
 import 'package:e_hrm/dto/users/users.dart';
 import 'package:e_hrm/providers/users/users_provider.dart';

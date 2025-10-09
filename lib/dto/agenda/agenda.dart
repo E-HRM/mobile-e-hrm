@@ -1,100 +1,109 @@
 import 'dart:convert';
 
-Agenda agendaFromJson(String str) => Agenda.fromJson(json.decode(str));
+import 'package:e_hrm/dto/agenda_kerja/agenda_kerja.dart' show Meta;
 
-String agendaToJson(Agenda data) => json.encode(data.toJson());
+export 'package:e_hrm/dto/agenda_kerja/agenda_kerja.dart' show Meta;
 
-class Agenda {
-  bool ok;
-  List<Data> data;
-  Meta meta;
+AgendaList agendaListFromJson(String str) =>
+    AgendaList.fromJson(json.decode(str) as Map<String, dynamic>);
 
-  Agenda({required this.ok, required this.data, required this.meta});
+String agendaListToJson(AgendaList data) => json.encode(data.toJson());
 
-  factory Agenda.fromJson(Map<String, dynamic> json) => Agenda(
-    ok: json["ok"],
-    data: List<Data>.from(json["data"].map((x) => Data.fromJson(x))),
-    meta: Meta.fromJson(json["meta"]),
+class AgendaList {
+  final bool? ok;
+  final Meta? meta;
+  final List<AgendaItem> data;
+
+  AgendaList({this.ok, this.meta, required this.data});
+
+  factory AgendaList.fromJson(Map<String, dynamic> json) => AgendaList(
+    ok: _asBool(json['ok']),
+    meta: _parseMeta(json['meta']),
+    data: (json['data'] as List? ?? const [])
+        .map<AgendaItem>(
+          (dynamic item) => AgendaItem.fromJson(_ensureMap(item)),
+        )
+        .toList(),
   );
 
-  Map<String, dynamic> toJson() => {
-    "ok": ok,
-    "data": List<dynamic>.from(data.map((x) => x.toJson())),
-    "meta": meta.toJson(),
+  Map<String, dynamic> toJson() => <String, dynamic>{
+    if (ok != null) 'ok': ok,
+    if (meta != null) 'meta': meta!.toJson(),
+    'data': data.map((e) => e.toJson()).toList(),
   };
 }
 
-class Data {
-  String idAgenda;
-  String namaAgenda;
-  DateTime createdAt;
-  DateTime updatedAt;
-  dynamic deletedAt;
-  Count count;
+class AgendaItem {
+  final String idAgenda;
+  final String? namaAgenda;
+  final String? deskripsi;
+  final String? status;
+  final DateTime? createdAt;
+  final DateTime? updatedAt;
 
-  Data({
+  AgendaItem({
     required this.idAgenda,
-    required this.namaAgenda,
-    required this.createdAt,
-    required this.updatedAt,
-    required this.deletedAt,
-    required this.count,
+    this.namaAgenda,
+    this.deskripsi,
+    this.status,
+    this.createdAt,
+    this.updatedAt,
   });
 
-  factory Data.fromJson(Map<String, dynamic> json) => Data(
-    idAgenda: json["id_agenda"],
-    namaAgenda: json["nama_agenda"],
-    createdAt: DateTime.parse(json["created_at"]),
-    updatedAt: DateTime.parse(json["updated_at"]),
-    deletedAt: json["deleted_at"],
-    count: Count.fromJson(json["_count"]),
+  factory AgendaItem.fromJson(Map<String, dynamic> json) => AgendaItem(
+    idAgenda: (json['id_agenda'] ?? json['id'] ?? '').toString(),
+    namaAgenda: _asString(json['nama_agenda'] ?? json['nama']),
+    deskripsi: _asString(
+      json['deskripsi_agenda'] ?? json['deskripsi'] ?? json['keterangan'],
+    ),
+    status: _asString(json['status']),
+    createdAt: _parseDateTime(json['created_at']),
+    updatedAt: _parseDateTime(json['updated_at']),
   );
 
-  Map<String, dynamic> toJson() => {
-    "id_agenda": idAgenda,
-    "nama_agenda": namaAgenda,
-    "created_at": createdAt.toIso8601String(),
-    "updated_at": updatedAt.toIso8601String(),
-    "deleted_at": deletedAt,
-    "_count": count.toJson(),
+  Map<String, dynamic> toJson() => <String, dynamic>{
+    'id_agenda': idAgenda,
+    if (namaAgenda != null) 'nama_agenda': namaAgenda,
+    if (deskripsi != null) 'deskripsi_agenda': deskripsi,
+    if (status != null) 'status': status,
+    if (createdAt != null) 'created_at': createdAt!.toIso8601String(),
+    if (updatedAt != null) 'updated_at': updatedAt!.toIso8601String(),
   };
 }
 
-class Count {
-  int items;
-
-  Count({required this.items});
-
-  factory Count.fromJson(Map<String, dynamic> json) =>
-      Count(items: json["items"]);
-
-  Map<String, dynamic> toJson() => {"items": items};
+Meta? _parseMeta(dynamic value) {
+  if (value is Meta) return value;
+  if (value is Map<String, dynamic>) return Meta.fromJson(value);
+  if (value is Map) return Meta.fromJson(Map<String, dynamic>.from(value));
+  return null;
 }
 
-class Meta {
-  int page;
-  int perPage;
-  int total;
-  int totalPages;
+Map<String, dynamic> _ensureMap(dynamic value) {
+  if (value is Map<String, dynamic>) return value;
+  if (value is Map) return Map<String, dynamic>.from(value);
+  return <String, dynamic>{};
+}
 
-  Meta({
-    required this.page,
-    required this.perPage,
-    required this.total,
-    required this.totalPages,
-  });
+String? _asString(dynamic value) => value?.toString();
 
-  factory Meta.fromJson(Map<String, dynamic> json) => Meta(
-    page: json["page"],
-    perPage: json["perPage"],
-    total: json["total"],
-    totalPages: json["totalPages"],
-  );
+bool? _asBool(dynamic value) {
+  if (value == null) return null;
+  if (value is bool) return value;
+  if (value is num) return value != 0;
+  if (value is String) {
+    final normalized = value.trim().toLowerCase();
+    if (normalized == 'true' || normalized == '1') return true;
+    if (normalized == 'false' || normalized == '0') return false;
+  }
+  return null;
+}
 
-  Map<String, dynamic> toJson() => {
-    "page": page,
-    "perPage": perPage,
-    "total": total,
-    "totalPages": totalPages,
-  };
+DateTime? _parseDateTime(dynamic value) {
+  if (value == null) return null;
+  if (value is DateTime) return value;
+  if (value is int) return DateTime.fromMillisecondsSinceEpoch(value);
+  if (value is String && value.isNotEmpty) {
+    return DateTime.tryParse(value);
+  }
+  return null;
 }

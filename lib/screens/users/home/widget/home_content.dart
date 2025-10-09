@@ -12,39 +12,45 @@ class HomeContent extends StatelessWidget {
       spacing: 30, //horizontal
       runSpacing: 20, //vertikal
       children: [
-        Column(
-          children: [
-            Container(
-              decoration: BoxDecoration(
-                gradient: LinearGradient(
-                  begin: Alignment.topCenter,
-                  end: Alignment.bottomCenter,
-                  colors: [AppColors.textColor, AppColors.backgroundColor],
-                ),
-                shape: BoxShape.circle,
-                // color: AppColors.secondaryColor.withOpacity(0.2),
-                boxShadow: [
-                  BoxShadow(
-                    color: Colors.grey.withOpacity(0.2), // warna shadow
-                    blurRadius: 8, // seberapa blur
-                    offset: Offset(0, 4), // posisi shadow
+        GestureDetector(
+          onTap: () {
+            Navigator.pushNamed(context, '/kunjungan-klien');
+          },
+          child: Column(
+            children: [
+              Container(
+                decoration: BoxDecoration(
+                  gradient: LinearGradient(
+                    begin: Alignment.topCenter,
+                    end: Alignment.bottomCenter,
+                    colors: [AppColors.textColor, AppColors.backgroundColor],
                   ),
-                ],
+                  shape: BoxShape.circle,
+                  // color: AppColors.secondaryColor.withOpacity(0.2),
+                  boxShadow: [
+                    BoxShadow(
+                      color: Colors.grey.withOpacity(0.2), // warna shadow
+                      blurRadius: 8, // seberapa blur
+                      offset: Offset(0, 4), // posisi shadow
+                    ),
+                  ],
+                ),
+                padding: EdgeInsets.all(20),
+                child: Icon(Icons.wallet_travel_rounded),
               ),
-              padding: EdgeInsets.all(20),
-              child: Icon(Icons.wallet_travel_rounded),
-            ),
-            SizedBox(height: 10),
-            Text(
-              "Kunjungan",
-              style: TextStyle(
-                fontSize: 13,
-                fontWeight: FontWeight.w500,
-                color: AppColors.textDefaultColor,
+              SizedBox(height: 10),
+              Text(
+                "Kunjungan",
+                style: TextStyle(
+                  fontSize: 13,
+                  fontWeight: FontWeight.w500,
+                  color: AppColors.textDefaultColor,
+                ),
               ),
-            ),
-          ],
+            ],
+          ),
         ),
+
         GestureDetector(
           onTap: () {
             Navigator.pushNamed(context, '/agenda-kerja');
@@ -117,39 +123,44 @@ class HomeContent extends StatelessWidget {
             ),
           ],
         ),
-        Column(
-          children: [
-            Container(
-              decoration: BoxDecoration(
-                gradient: LinearGradient(
-                  begin: Alignment.topCenter,
-                  end: Alignment.bottomCenter,
-                  colors: [AppColors.textColor, AppColors.backgroundColor],
-                ),
-                shape: BoxShape.circle,
-                // color: AppColors.secondaryColor.withOpacity(0.2),
-                boxShadow: [
-                  BoxShadow(
-                    color: Colors.grey.withOpacity(0.2), // warna shadow
-                    blurRadius: 8, // seberapa blur
-                    offset: Offset(0, 4), // posisi shadow
+        GestureDetector(
+          onTap: () {
+            Navigator.pushNamed(context, '/jam-istirahat');
+          },
+          child: Column(
+            children: [
+              Container(
+                decoration: BoxDecoration(
+                  gradient: LinearGradient(
+                    begin: Alignment.topCenter,
+                    end: Alignment.bottomCenter,
+                    colors: [AppColors.textColor, AppColors.backgroundColor],
                   ),
-                ],
+                  shape: BoxShape.circle,
+                  // color: AppColors.secondaryColor.withOpacity(0.2),
+                  boxShadow: [
+                    BoxShadow(
+                      color: Colors.grey.withOpacity(0.2), // warna shadow
+                      blurRadius: 8, // seberapa blur
+                      offset: Offset(0, 4), // posisi shadow
+                    ),
+                  ],
+                ),
+                padding: EdgeInsets.all(20),
+                child: Icon(Icons.coffee_maker_outlined),
               ),
-              padding: EdgeInsets.all(20),
-              child: Icon(Icons.coffee_maker_outlined),
-            ),
-            SizedBox(height: 10),
-            Text(
-              "Jam \nIstirahat",
-              textAlign: TextAlign.center,
-              style: TextStyle(
-                fontSize: 13,
-                fontWeight: FontWeight.w500,
-                color: AppColors.textDefaultColor,
+              SizedBox(height: 10),
+              Text(
+                "Jam \nIstirahat",
+                textAlign: TextAlign.center,
+                style: TextStyle(
+                  fontSize: 13,
+                  fontWeight: FontWeight.w500,
+                  color: AppColors.textDefaultColor,
+                ),
               ),
-            ),
-          ],
+            ],
+          ),
         ),
         Column(
           children: [

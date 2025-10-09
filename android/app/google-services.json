@@ -1,0 +1,29 @@
+{
+  "project_info": {
+    "project_number": "653765384227",
+    "project_id": "e-hrm-1e3e0",
+    "storage_bucket": "e-hrm-1e3e0.firebasestorage.app"
+  },
+  "client": [
+    {
+      "client_info": {
+        "mobilesdk_app_id": "1:653765384227:android:d4821fc6d8b5910c34b996",
+        "android_client_info": {
+          "package_name": "com.example.e_hrm"
+        }
+      },
+      "oauth_client": [],
+      "api_key": [
+        {
+          "current_key": "AIzaSyBimwmKvkInVZjLnEalA78BwoQjxahqhBM"
+        }
+      ],
+      "services": {
+        "appinvite_service": {
+          "other_platform_oauth_client": []
+        }
+      }
+    }
+  ],
+  "configuration_version": "1"
+}

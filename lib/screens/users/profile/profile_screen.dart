@@ -1,19 +1,13 @@
-// lib/screens/users/profile/profile_screen.dart
-// ignore_for_file: use_build_context_synchronously
+import 'dart:math' as math;
 
-import 'dart:io';
-import 'package:e_hrm/dto/users/users.dart';
-import 'package:e_hrm/providers/users/users_provider.dart';
-import 'package:e_hrm/screens/users/profile/widget/profile_header.dart';
-import 'package:e_hrm/screens/users/profile/widget/button_profile.dart';
+import 'package:e_hrm/providers/auth/auth_provider.dart';
+import 'package:e_hrm/providers/profile/profile_provider.dart';
 import 'package:e_hrm/screens/users/profile/widget/form_profile.dart';
-import 'package:e_hrm/screens/users/profile/widget/half_oval_painter.dart';
+import 'package:e_hrm/screens/users/profile/widget/half_oval_painter_profile.dart';
+import 'package:e_hrm/screens/users/profile/widget/header_profile.dart';
+import 'package:e_hrm/utils/id_user_resolver.dart';
 import 'package:flutter/material.dart';
-import 'package:google_fonts/google_fonts.dart';
-import 'package:image_picker/image_picker.dart';
-import 'package:jwt_decoder/jwt_decoder.dart';
 import 'package:provider/provider.dart';
-import 'package:shared_preferences/shared_preferences.dart';
 
 class ProfileScreen extends StatefulWidget {
   const ProfileScreen({super.key});
@@ -23,219 +17,186 @@ class ProfileScreen extends StatefulWidget {
 }
 
 class _ProfileScreenState extends State<ProfileScreen> {
-  final nameprofileController = TextEditingController();
-  final emailprofileController = TextEditingController();
-  final kontakprofileController = TextEditingController();
-  final agamaprofileController = TextEditingController();
-  final dateprofileController = TextEditingController();
-  final departementprofileController = TextEditingController();
-  final alamatkantorprofileController = TextEditingController();
-
-  File? _pickedFile;
   String? _userId;
-
-  // guards
-  bool _didRequest = false; // supaya fetchById hanya sekali
-  bool _didPrefill = false; // supaya isi controller hanya sekali
 
   @override
   void initState() {
     super.initState();
-    _readUserIdFromToken(); // ambil userId dari JWT lokal
-  }
-
-  Future<void> _readUserIdFromToken() async {
-    final prefs = await SharedPreferences.getInstance();
-    final token = prefs.getString('token');
-    if (token == null) return;
-    final payload = JwtDecoder.decode(token);
-    setState(() {
-      _userId = (payload['id_user'] ?? payload['sub'] ?? payload['userId'])
-          ?.toString();
+    // Pastikan data profil termuat ketika halaman dibuka.
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      _loadProfile();
     });
   }
 
-  void _prefillOnce(Users u) {
-    if (_didPrefill) return;
-    _didPrefill = true;
-
-    nameprofileController.text = u.namaPengguna;
-    emailprofileController.text = u.email;
-    kontakprofileController.text = u.kontak ?? '';
-    agamaprofileController.text = u.agama ?? '';
-    dateprofileController.text = u.tanggalLahir == null
-        ? ''
-        : u.tanggalLahir!.toIso8601String().split('T').first;
-
-    departementprofileController.text = u.departement?.namaDepartement ?? '';
-    alamatkantorprofileController.text = u.kantor?.namaKantor ?? '';
-  }
-
-  Future<void> _save() async {
-    final prov = context.read<UserDetailProvider>();
-    if (_userId == null) return;
-
-    DateTime? tgl;
-    if (dateprofileController.text.trim().isNotEmpty) {
-      tgl = DateTime.tryParse(dateprofileController.text.trim());
-    }
-
-    bool ok;
-    if (_pickedFile != null) {
-      ok = await prov.updateByIdWithPhoto(
-        _userId!,
-        foto: XFile(_pickedFile!.path),
-        namaPengguna: nameprofileController.text,
-        email: emailprofileController.text,
-        kontak: kontakprofileController.text,
-        agama: agamaprofileController.text,
-        tanggalLahir: tgl,
-      );
-    } else {
-      ok = await prov.updateByIdJson(
-        _userId!,
-        namaPengguna: nameprofileController.text,
-        email: emailprofileController.text,
-        kontak: kontakprofileController.text,
-        agama: agamaprofileController.text,
-        tanggalLahir: tgl,
-      );
-    }
-
+  Future<void> _loadProfile({bool force = false}) async {
     if (!mounted) return;
-    final msg =
-        prov.error ??
-        prov.message ??
-        (ok ? 'Profil tersimpan.' : 'Gagal menyimpan.');
-    ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(msg)));
 
-    if (ok && prov.user != null) {
-      _pickedFile = null; // reset foto lokal
-      _didPrefill = false;
-      _prefillOnce(prov.user!);
-      setState(() {}); // perbarui avatar dari URL terbaru
+    final auth = context.read<AuthProvider>();
+    final resolvedId = await resolveUserId(auth, context: context);
+    if (!mounted) return;
+
+    if (resolvedId == null || resolvedId.trim().isEmpty) {
+      setState(() => _userId = null);
+      return;
     }
+
+    setState(() => _userId = resolvedId);
+
+    final profileProvider = context.read<ProfileProvider>();
+    if (!force && profileProvider.profile?.idUser == resolvedId) {
+      return;
+    }
+
+    await profileProvider.fetchProfile(resolvedId);
   }
 
-  @override
-  void dispose() {
-    nameprofileController.dispose();
-    emailprofileController.dispose();
-    kontakprofileController.dispose();
-    agamaprofileController.dispose();
-    dateprofileController.dispose();
-    departementprofileController.dispose();
-    alamatkantorprofileController.dispose();
-    super.dispose();
-  }
+  Future<void> _refresh() => _loadProfile(force: true);
 
   @override
   Widget build(BuildContext context) {
-    return ChangeNotifierProvider<UserDetailProvider>(
-      // ⬇️ injeksi ApiService dari tree (pastikan ApiService diprovide di main.dart)
-      create: (ctx) => UserDetailProvider(),
-      child: Consumer<UserDetailProvider>(
-        builder: (ctx, prov, _) {
-          // trigger fetch sekali ketika userId sudah ada & belum ada data
-          if (_userId != null &&
-              prov.user == null &&
-              !_didRequest &&
-              !prov.loading) {
-            _didRequest = true;
-            Future.microtask(() async {
-              final ok = await prov.fetchById(_userId!);
-              if (ok && prov.user != null) {
-                _prefillOnce(prov.user!);
-                if (mounted) setState(() {}); // supaya imageUrl update
-              }
-            });
-          }
+    final size = MediaQuery.sizeOf(context);
+    final profileProvider = context.watch<ProfileProvider>();
+    final profile = profileProvider.profile;
+    final isInitialLoading = profileProvider.loading && profile == null;
+    final error = profileProvider.error;
 
-          final u = prov.user;
-          final imageUrlForForm = _pickedFile != null
-              ? null
-              : ((u?.fotoProfilUser?.isNotEmpty ?? false)
-                    ? u!.fotoProfilUser
-                    : null);
+    final iconMax = (math.min(size.width, size.height) * 0.4).clamp(
+      320.0,
+      360.0,
+    );
 
-          return Scaffold(
-            body: SingleChildScrollView(
-              child: SafeArea(
-                child: ConstrainedBox(
-                  constraints: BoxConstraints(
-                    minHeight: MediaQuery.of(context).size.height,
+    return Scaffold(
+      body: Stack(
+        children: [
+          // BG ikon samar di tengah
+          Positioned.fill(
+            child: IgnorePointer(
+              ignoring: true,
+              child: Center(
+                child: Opacity(
+                  opacity: 0.3,
+                  child: Image.asset(
+                    'lib/assets/image/icon_bg.png',
+                    width: iconMax,
                   ),
-                  child: Stack(
+                ),
+              ),
+            ),
+          ),
+          Positioned.fill(
+            child: IgnorePointer(
+              ignoring: true,
+              child: Image.asset(
+                'lib/assets/image/Pattern.png',
+                fit: BoxFit.cover,
+                alignment: Alignment.center,
+              ),
+            ),
+          ),
+          Align(
+            alignment: Alignment.topCenter,
+            child: SizedBox(
+              width: double.infinity,
+              height: 300,
+              child: const BlurHalfOvalHeader(height: 240, sigma: 0),
+            ),
+          ),
+          // === Konten utama (scrollable) ===
+          Positioned.fill(
+            child: SafeArea(
+              // top/bottom tetap aman, kiri/kanan edge-to-edge
+              left: false,
+              right: false,
+              child: RefreshIndicator(
+                onRefresh: _refresh,
+                child: SingleChildScrollView(
+                  physics: const AlwaysScrollableScrollPhysics(),
+                  // full width secara horizontal
+                  padding: const EdgeInsets.fromLTRB(0, 80, 0, 24),
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.stretch,
                     children: [
-                      SizedBox(
-                        width: double.infinity,
-                        height: 300,
-                        child: CustomPaint(painter: HalfOvalPainter()),
-                      ),
-                      Padding(
-                        padding: const EdgeInsets.fromLTRB(15, 170, 15, 24),
-                        child: Column(
-                          crossAxisAlignment: CrossAxisAlignment.stretch,
-                          children: [
-                            FormProfile(
-                              nameprofileController: nameprofileController,
-                              emailprofileController: emailprofileController,
-                              kontakprofileController: kontakprofileController,
-                              agamaprofileController: agamaprofileController,
-                              dateprofileController: dateprofileController,
-                              departementrofileController:
-                                  departementprofileController,
-                              alamatkantorprofileController:
-                                  alamatkantorprofileController,
-                              imageUrl: imageUrlForForm,
-                              onImagePicked: (File? f) =>
-                                  setState(() => _pickedFile = f),
-                              onRemovePhoto: () async {
-                                if (_userId == null) return;
-                                final ok = await prov.removePhoto(_userId!);
-                                if (!mounted) return;
-                                final msg =
-                                    prov.error ??
-                                    prov.message ??
-                                    (ok
-                                        ? 'Foto dihapus.'
-                                        : 'Gagal hapus foto.');
-                                ScaffoldMessenger.of(
-                                  context,
-                                ).showSnackBar(SnackBar(content: Text(msg)));
-                              },
-                            ),
-                            const SizedBox(height: 16),
-                            ButtonProfile(
-                              onPressed: prov.saving ? null : _save,
-                            ),
-                            const SizedBox(height: 32),
-                            if (prov.loading || prov.saving)
-                              Center(
-                                child: Padding(
-                                  padding: const EdgeInsets.only(top: 8.0),
-                                  child: Text(
-                                    prov.loading
-                                        ? 'Memuat profil...'
-                                        : 'Menyimpan...',
-                                    style: GoogleFonts.poppins(
-                                      fontWeight: FontWeight.w500,
-                                    ),
-                                  ),
-                                ),
+                      const SizedBox(height: 100),
+                      if (isInitialLoading)
+                        const Padding(
+                          padding: EdgeInsets.symmetric(vertical: 80),
+                          child: Center(child: CircularProgressIndicator()),
+                        )
+                      else if (error != null && profile == null)
+                        Padding(
+                          padding: const EdgeInsets.symmetric(
+                            horizontal: 24,
+                            vertical: 40,
+                          ),
+                          child: Column(
+                            mainAxisSize: MainAxisSize.min,
+                            children: [
+                              Icon(
+                                Icons.error_outline,
+                                color: Colors.red.shade400,
+                                size: 48,
                               ),
-                          ],
+                              const SizedBox(height: 16),
+                              Text(
+                                'Gagal memuat profil',
+                                style: Theme.of(context).textTheme.titleMedium,
+                                textAlign: TextAlign.center,
+                              ),
+                              const SizedBox(height: 8),
+                              Text(
+                                error,
+                                textAlign: TextAlign.center,
+                                style: Theme.of(context).textTheme.bodyMedium
+                                    ?.copyWith(color: Colors.black54),
+                              ),
+                              const SizedBox(height: 24),
+                              ElevatedButton.icon(
+                                onPressed: () => _refresh(),
+                                icon: const Icon(Icons.refresh),
+                                label: const Text('Coba lagi'),
+                              ),
+                            ],
+                          ),
+                        )
+                      else if ((_userId != null &&
+                              _userId!.trim().isNotEmpty) ||
+                          profile != null)
+                        FormProfile(
+                          provider: profileProvider,
+                          userId: _userId ?? profile?.idUser,
+                        )
+                      else
+                        Padding(
+                          padding: const EdgeInsets.symmetric(
+                            horizontal: 24,
+                            vertical: 40,
+                          ),
+                          child: Column(
+                            mainAxisSize: MainAxisSize.min,
+                            children: [
+                              const Icon(
+                                Icons.person_off_outlined,
+                                size: 48,
+                                color: Colors.black45,
+                              ),
+                              const SizedBox(height: 16),
+                              Text(
+                                'ID pengguna tidak ditemukan.',
+                                textAlign: TextAlign.center,
+                                style: Theme.of(context).textTheme.bodyLarge,
+                              ),
+                            ],
+                          ),
                         ),
-                      ),
-
-                      Positioned(top: 30, left: 20, child: ProfileHeader()),
                     ],
                   ),
                 ),
               ),
             ),
-          );
-        },
+          ),
+
+          Positioned(top: 40, left: 10, child: HeaderProfile()),
+        ],
       ),
     );
   }

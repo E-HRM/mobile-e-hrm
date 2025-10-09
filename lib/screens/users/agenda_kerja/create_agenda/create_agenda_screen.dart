@@ -1,7 +1,9 @@
 //screens/users/agenda_kerja/create_agenda/create_agenda_screen.dart
+// ignore_for_file: deprecated_member_use
+
 import 'dart:math' as math;
 import 'package:e_hrm/contraints/colors.dart';
-import 'package:e_hrm/screens/users/agenda_kerja/create_agenda/widget/form_agenda.dart';
+import 'package:e_hrm/screens/users/agenda_kerja/create_agenda/widget/form_agenda_create.dart';
 import 'package:e_hrm/screens/users/agenda_kerja/create_agenda/widget/half_oval_painter_agenda.dart';
 import 'package:e_hrm/screens/users/agenda_kerja/create_agenda/widget/header_create_agenda.dart';
 import 'package:flutter/material.dart';
@@ -23,33 +25,43 @@ class _CreateAgendaScreenState extends State<CreateAgendaScreen> {
     );
 
     return Scaffold(
+      resizeToAvoidBottomInset: false,
       body: Stack(
         children: [
           // BG ikon samar di tengah
-          SafeArea(
-            child: Center(
-              child: Opacity(
-                opacity: 0.3,
-                child: Image.asset(
-                  'lib/assets/image/icon_bg.png',
-                  width: iconMax,
+          Positioned.fill(
+            child: IgnorePointer(
+              ignoring: true,
+              child: Center(
+                child: Opacity(
+                  opacity: 0.3,
+                  child: Image.asset(
+                    'lib/assets/image/icon_bg.png',
+                    width: iconMax,
+                  ),
                 ),
               ),
             ),
           ),
-          // Pattern full layar
           Positioned.fill(
-            child: Image.asset(
-              'lib/assets/image/Pattern.png',
-              fit: BoxFit.cover,
-              alignment: Alignment.center,
+            child: IgnorePointer(
+              ignoring: true,
+              child: Image.asset(
+                'lib/assets/image/Pattern.png',
+                fit: BoxFit.cover,
+                alignment: Alignment.center,
+              ),
             ),
           ),
-          SizedBox(
-            width: double.infinity,
-            height: 300,
-            child: CustomPaint(painter: HalfOvalPainterAgenda()),
+          Align(
+            alignment: Alignment.topCenter,
+            child: SizedBox(
+              width: double.infinity,
+              height: 300,
+              child: CustomPaint(painter: HalfOvalPainterAgenda()),
+            ),
           ),
+
           Positioned.fill(
             child: SafeArea(
               // top/bottom tetap aman, kiri/kanan edge-to-edge
@@ -71,7 +83,7 @@ class _CreateAgendaScreenState extends State<CreateAgendaScreen> {
                             borderRadius: BorderRadius.circular(10),
                             border: Border.all(color: AppColors.secondaryColor),
                           ),
-                          child: FormAgenda(),
+                          child: FormAgendaCreate(),
                         ),
                       ],
                     ),

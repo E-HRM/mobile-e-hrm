@@ -1,26 +1,31 @@
 // lib/providers/absensi/absensi_provider.dart
-// Provider untuk checkin/checkout: ambil token dari SharedPreferences,
-// kirim multipart (user_id, location_id, lat, lng, image)
-// + dukungan multiple 'todo', multiple 'recipient',
-//   serta todo_status, todo_date, todo_start, todo_end (opsional).
 
 import 'dart:io';
 import 'dart:convert';
+import 'package:e_hrm/dto/absensi/absensi_checkout.dart';
 import 'package:e_hrm/dto/absensi/absensi_status.dart';
 import 'package:e_hrm/services/api_services.dart';
 import 'package:flutter/foundation.dart';
 import 'package:http/http.dart' as http;
 import 'package:shared_preferences/shared_preferences.dart';
 
-import 'package:e_hrm/dto/absensi/absensi.dart';
+import 'package:e_hrm/dto/absensi/absensi_checkin.dart';
 import 'package:e_hrm/contraints/endpoints.dart';
+
+class AbsensiCatatanEntry {
+  final String description;
+  final String? attachmentUrl;
+
+  const AbsensiCatatanEntry({required this.description, this.attachmentUrl});
+}
 
 class AbsensiProvider extends ChangeNotifier {
   bool saving = false;
   String? error;
-  Absensi? result;
+  AbsensiChekin? checkinResult;
+  AbsensiChekout? checkoutResult;
   final ApiService _api = ApiService();
-  AbsensiStatusDto? todayStatus;
+  AbsensiStatus? todayStatus;
   bool loadingStatus = false;
 
   void _setSaving(bool v) {
@@ -36,95 +41,80 @@ class AbsensiProvider extends ChangeNotifier {
   void reset() {
     saving = false;
     error = null;
-    result = null;
+    checkinResult = null;
+    checkoutResult = null;
     notifyListeners();
   }
 
-  /// Helper format 'YYYY-MM-DD'
-  String _fmtDate(DateTime d) {
-    final y = d.year.toString().padLeft(4, '0');
-    final m = d.month.toString().padLeft(2, '0');
-    final day = d.day.toString().padLeft(2, '0');
-    return '$y-$m-$day';
-  }
-
-  Future<Absensi?> checkin({
+  Future<AbsensiChekin?> checkin({
     required String userId,
     String? locationId,
     required double lat,
     required double lng,
     required File imageFile,
-
-    // --- tambahan opsional ---
-    List<String> todos = const [],
-    List<String> recipients = const [], // id_user penerima laporan
-    String? todoStatus, // 'diproses' | 'selesai' | 'ditunda'
-    DateTime? todoDate, // tanggal todo
-    DateTime? todoStart, // jam mulai (akan dikirim ISO)
-    DateTime? todoEnd, // jam selesai (akan dikirim ISO)
-  }) {
-    return _submit(
+    List<String> agendaKerjaIds = const [],
+    List<String> recipients = const [],
+    List<AbsensiCatatanEntry> catatan = const [],
+  }) async {
+    final value = await _submit(
       path: Endpoints.absensiCheckin,
       userId: userId,
       locationId: locationId,
       lat: lat,
       lng: lng,
       imageFile: imageFile,
-      todos: todos,
+      agendaKerjaIds: agendaKerjaIds,
       recipients: recipients,
-      todoStatus: todoStatus,
-      todoDate: todoDate,
-      todoStart: todoStart,
-      todoEnd: todoEnd,
+      catatan: catatan,
+      parser: (json) => AbsensiChekin.fromJson(json),
     );
+    if (value != null) {
+      checkinResult = value;
+      notifyListeners();
+    }
+    return value;
   }
 
-  Future<Absensi?> checkout({
+  Future<AbsensiChekout?> checkout({
     required String userId,
     String? locationId,
     required double lat,
     required double lng,
     required File imageFile,
-
-    // --- tambahan opsional ---
-    List<String> todos = const [],
+    List<String> agendaKerjaIds = const [],
     List<String> recipients = const [],
-    String? todoStatus, // 'diproses' | 'selesai' | 'ditunda'
-    DateTime? todoDate,
-    DateTime? todoStart,
-    DateTime? todoEnd,
-  }) {
-    return _submit(
+    List<AbsensiCatatanEntry> catatan = const [],
+  }) async {
+    final value = await _submit(
       path: Endpoints.absensiCheckout,
       userId: userId,
       locationId: locationId,
       lat: lat,
       lng: lng,
       imageFile: imageFile,
-      todos: todos,
+      agendaKerjaIds: agendaKerjaIds,
       recipients: recipients,
-      todoStatus: todoStatus,
-      todoDate: todoDate,
-      todoStart: todoStart,
-      todoEnd: todoEnd,
+      catatan: catatan,
+      parser: (json) => AbsensiChekout.fromJson(json),
     );
+    if (value != null) {
+      checkoutResult = value;
+      notifyListeners();
+    }
+    return value;
   }
 
-  Future<Absensi?> _submit({
-    required String path, // ex: "/api/absensi/checkin"
+  Future<T?> _submit<T>({
+    required String path,
     required String userId,
     String? locationId,
     required double lat,
     required double lng,
     required File imageFile,
-
-    // --- tambahan opsional ---
-    List<String> todos = const [],
+    List<String> agendaKerjaIds = const [],
     List<String> recipients = const [],
-    String? todoStatus,
-    DateTime? todoDate,
-    DateTime? todoStart,
-    DateTime? todoEnd,
+    List<AbsensiCatatanEntry> catatan = const [],
+    required T Function(Map<String, dynamic>) parser,
   }) async {
     _setSaving(true);
     _setErr(null);
@@ -136,89 +126,122 @@ class AbsensiProvider extends ChangeNotifier {
         throw Exception('Unauthorized. Silakan login ulang.');
       }
 
-      final uri = Uri.parse('${Endpoints.baseURL}$path');
+      // Logika URI tidak berubah
+      final uri = () {
+        final trimmed = path.trim();
+        final parsed = Uri.tryParse(trimmed);
+        if (parsed != null && parsed.hasScheme) return parsed;
+        final baseUri = Uri.parse(
+          Endpoints.faceBaseURL,
+        ); // Menggunakan faceBaseURL
+        final origin = '${baseUri.scheme}://${baseUri.authority}';
+        if (trimmed.startsWith('/')) return Uri.parse('$origin$trimmed');
+        final basePath = baseUri.path.isEmpty
+            ? '/'
+            : (baseUri.path.endsWith('/') ? baseUri.path : '${baseUri.path}/');
+        return Uri.parse('$origin$basePath$trimmed');
+      }();
       final req = http.MultipartRequest('POST', uri);
 
-      // Auth header
       req.headers['Authorization'] = 'Bearer $token';
 
-      // --- field tunggal ---
+      // Fields (tidak ada perubahan)
       req.fields['user_id'] = userId;
-      if ((locationId ?? '').isNotEmpty) {
+      if ((locationId ?? '').isNotEmpty)
         req.fields['location_id'] = locationId!;
-      }
       req.fields['lat'] = lat.toString();
       req.fields['lng'] = lng.toString();
 
-      // --- opsi Todo extras (opsional) ---
-      if (todoStatus != null && todoStatus.isNotEmpty) {
-        // harap isi salah satu: diproses | selesai | ditunda
-        req.fields['todo_status'] = todoStatus;
+      for (final id in agendaKerjaIds) {
+        if (id.trim().isNotEmpty)
+          req.files.add(
+            http.MultipartFile.fromString('agenda_kerja_id', id.trim()),
+          );
       }
-      if (todoDate != null) {
-        req.fields['todo_date'] = _fmtDate(todoDate);
-      }
-      if (todoStart != null) {
-        req.fields['todo_start'] = todoStart.toIso8601String();
-      }
-      if (todoEnd != null) {
-        req.fields['todo_end'] = todoEnd.toIso8601String();
-      }
-
-      // --- multiple 'todo' (gunakan MultipartFile.fromString agar bisa duplikat key) ---
-      for (final t in todos) {
-        final val = (t).trim();
-        if (val.isEmpty) continue;
-        req.files.add(http.MultipartFile.fromString('todo', val));
-      }
-
-      // --- multiple 'recipient' (id_user penerima laporan) ---
       for (final rid in recipients) {
-        final v = (rid).trim();
-        if (v.isEmpty) continue;
-        req.files.add(http.MultipartFile.fromString('recipient', v));
+        if (rid.trim().isNotEmpty)
+          req.files.add(http.MultipartFile.fromString('recipient', rid.trim()));
+      }
+      for (final entry in catatan) {
+        if (entry.description.trim().isNotEmpty) {
+          req.files.add(
+            http.MultipartFile.fromString(
+              'deskripsi_catatan',
+              entry.description.trim(),
+            ),
+          );
+          if (entry.attachmentUrl?.trim().isNotEmpty ?? false) {
+            req.files.add(
+              http.MultipartFile.fromString(
+                'lampiran_url',
+                entry.attachmentUrl!.trim(),
+              ),
+            );
+          }
+        }
       }
 
-      // --- image ---
       final img = await http.MultipartFile.fromPath('image', imageFile.path);
       req.files.add(img);
 
       final streamed = await req.send();
       final resp = await http.Response.fromStream(streamed);
 
+      // --- PERBAIKAN UTAMA DI SINI ---
       if (resp.statusCode >= 200 && resp.statusCode < 300) {
         final Map<String, dynamic> jsonMap =
             jsonDecode(utf8.decode(resp.bodyBytes)) as Map<String, dynamic>;
-        result = Absensi.fromJson(jsonMap);
-        notifyListeners();
-        return result;
+        final parsed = parser(
+          jsonMap['ok'] == true && jsonMap.containsKey('data')
+              ? jsonMap['data']
+              : jsonMap,
+        );
+        return parsed;
       } else if (resp.statusCode == 401) {
+        // Blok ini sekarang HANYA akan berjalan jika token benar-benar invalid.
         await prefs.remove('token');
         throw Exception('Unauthorized. Silakan login ulang.');
       } else {
+        // Untuk semua kode error lain (400, 409, 500, dll.)
+        String errorMessage = 'Terjadi galat (${resp.statusCode})';
         try {
-          final j = jsonDecode(utf8.decode(resp.bodyBytes));
-          throw Exception(j['message'] ?? 'Gagal (${resp.statusCode})');
+          // Coba parse body untuk mendapatkan pesan error dari backend
+          final jsonMap = jsonDecode(utf8.decode(resp.bodyBytes));
+          // Backend menggunakan kunci 'error' dalam helper `error()`
+          if (jsonMap['error'] is String &&
+              (jsonMap['error'] as String).isNotEmpty) {
+            errorMessage = jsonMap['error'];
+          } else if (jsonMap['message'] is String &&
+              (jsonMap['message'] as String).isNotEmpty) {
+            errorMessage = jsonMap['message'];
+          }
         } catch (_) {
-          throw Exception('Gagal (${resp.statusCode})');
+          // Jika body bukan JSON atau tidak ada pesan, gunakan body mentah.
+          final bodyString = utf8.decode(resp.bodyBytes);
+          if (bodyString.isNotEmpty) {
+            errorMessage = bodyString;
+          }
         }
+        throw Exception(errorMessage);
       }
     } catch (e) {
-      _setErr(e.toString());
+      _setErr(e.toString().replaceFirst("Exception: ", ""));
       return null;
     } finally {
       _setSaving(false);
     }
   }
 
-  Future<AbsensiStatusDto?> fetchTodayStatus(String userId) async {
+  Future<AbsensiStatus?> fetchTodayStatus(String userId) async {
     loadingStatus = true;
     notifyListeners();
     try {
       final res = await _api.fetchDataPrivate(
-        '${Endpoints.absensiStatus}?user_id=$userId',
+        Uri.parse(
+          Endpoints.absensiStatus,
+        ).replace(queryParameters: {'user_id': userId}).toString(),
       );
-      final dto = AbsensiStatusDto.fromJson(Map<String, dynamic>.from(res));
+      final dto = AbsensiStatus.fromJson(Map<String, dynamic>.from(res));
       todayStatus = dto;
       return dto;
     } catch (e) {

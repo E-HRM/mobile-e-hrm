@@ -117,7 +117,6 @@ class _AbsensiButtonState extends State<AbsensiButton>
     bool enabled =
         !loading &&
         _userId != null &&
-        !isLibur && // <-- Tombol dinonaktifkan jika libur
         (mode == 'checkin' || mode == 'checkout');
 
     return GestureDetector(
@@ -148,8 +147,6 @@ class _AbsensiButtonLabel extends StatelessWidget {
     String label;
     if (loading) {
       label = 'Memuat...';
-    } else if (isLibur) {
-      label = 'Anda Sedang Libur';
     } else {
       switch (abs.todayStatus?.mode) {
         case 'checkin':

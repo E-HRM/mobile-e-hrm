@@ -48,7 +48,7 @@ class Endpoints {
   static String agendaKerjaDetail(String id) => "$agendaKerjaCrud/$id";
 
   //agenda (admin)
-  static const String agenda = "$baseURL/mobile/agenda";
+  static const String agenda = "$baseURL/admin/agenda";
   //detail-agenda
   static String agendaDetail(String id) => "$agenda/$id";
 
@@ -82,4 +82,6 @@ class Endpoints {
   static const String getNotifications = "$baseURL/notifications";
   static String markNotificationAsRead(String notificationId) =>
       "$baseURL/notifications/$notificationId";
+  static const String markAllNotificationsAsRead =
+      "$baseURL/notifications/mark-all-as-read";
 }

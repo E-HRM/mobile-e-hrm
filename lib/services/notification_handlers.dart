@@ -1,9 +1,9 @@
 // lib/services/notification_handlers.dart
 
+// ignore_for_file: unused_element
+
 import 'dart:convert';
 import 'dart:collection';
-import 'dart:math';
-
 import 'package:firebase_core/firebase_core.dart';
 import 'package:firebase_messaging/firebase_messaging.dart';
 import 'package:flutter_local_notifications/flutter_local_notifications.dart';
@@ -16,9 +16,9 @@ Future<void> _firebaseMessagingBackgroundHandler(RemoteMessage message) async {
   await Firebase.initializeApp(options: DefaultFirebaseOptions.currentPlatform);
 
   final String uniqueLogId = DateTime.now().millisecondsSinceEpoch.toString();
-  print(
-    '[$uniqueLogId] BACKGROUND HANDLER TERPANGGIL messageId=${message.messageId}',
-  );
+  // print(
+  //   '[$uniqueLogId] BACKGROUND HANDLER TERPANGGIL messageId=${message.messageId}',
+  // );
 
   // Penting: jika payload bertipe "notification", biarkan sistem yang tampilkan (Android).
   NotificationHandler().showLocalNotification(
@@ -77,9 +77,9 @@ class NotificationHandler {
     FirebaseMessaging.onMessage.listen((RemoteMessage message) {
       final String uniqueLogId = DateTime.now().millisecondsSinceEpoch
           .toString();
-      print(
-        '[$uniqueLogId] FOREGROUND LISTENER TERPANGGIL messageId=${message.messageId}',
-      );
+      // print(
+      //   '[$uniqueLogId] FOREGROUND LISTENER TERPANGGIL messageId=${message.messageId}',
+      // );
       showLocalNotification(
         message,
         from: 'ForegroundListener_$uniqueLogId',
@@ -101,9 +101,9 @@ class NotificationHandler {
     // Jika dari background DAN ada payload notification:
     // Android sudah menampilkan notifikasi sistem secara otomatis.
     if (fromBackground && hasNotificationPayload) {
-      print(
-        'SKIP LOCAL: background + notification payload (biar sistem yang tampilkan).',
-      );
+      // print(
+      //   'SKIP LOCAL: background + notification payload (biar sistem yang tampilkan).',
+      // );
       return false;
     }
 
@@ -129,9 +129,9 @@ class NotificationHandler {
     String from = 'Unknown',
     required bool fromBackground,
   }) {
-    print(
-      'SHOW_LOCAL_NOTIFICATION dipanggil dari: [$from] messageId=${message.messageId}',
-    );
+    // print(
+    //   'SHOW_LOCAL_NOTIFICATION dipanggil dari: [$from] messageId=${message.messageId}',
+    // );
 
     // (opsional) kalau kamu tetap pakai guard background vs notification payload
     // if (!_shouldShowLocal(message, fromBackground: fromBackground)) return;
@@ -142,7 +142,7 @@ class NotificationHandler {
         message.data['body'] ?? message.notification?.body ?? 'No Body';
 
     if (title.isEmpty && body.isEmpty) {
-      print('GAGAL MENAMPILKAN NOTIFIKASI: Title/Body kosong.');
+      // print('GAGAL MENAMPILKAN NOTIFIKASI: Title/Body kosong.');
       return;
     }
 
@@ -151,9 +151,9 @@ class NotificationHandler {
     // pastikan positif
     final int notificationId = dedupeKey.hashCode & 0x7fffffff;
 
-    print(
-      'MENAMPILKAN/UPDATE NOTIF LOKAL id=$notificationId tag=$dedupeKey (from=$from)',
-    );
+    // print(
+    //   'MENAMPILKAN/UPDATE NOTIF LOKAL id=$notificationId tag=$dedupeKey (from=$from)',
+    // );
 
     _localNotifications.show(
       notificationId,
@@ -196,7 +196,7 @@ class NotificationHandler {
       _cachedToken = await _firebaseMessaging.getToken();
       return _cachedToken;
     } catch (e) {
-      print('Gagal mendapatkan FCM token: $e');
+      // print('Gagal mendapatkan FCM token: $e');
       return null;
     }
   }
@@ -213,9 +213,9 @@ class NotificationHandler {
       await _apiService.postDataPrivate(Endpoints.getNotifications, {
         'token': token,
       });
-      print('FCM token berhasil dikirim ke server.');
+      // print('FCM token berhasil dikirim ke server.');
     } catch (e) {
-      print('Gagal mengirim FCM token ke server: $e');
+      // print('Gagal mengirim FCM token ke server: $e');
     }
   }
 }

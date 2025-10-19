@@ -27,6 +27,7 @@ class _FormAgendaCreateState extends State<FormAgendaCreate> {
   final TextEditingController startTimeController = TextEditingController();
   final TextEditingController endTimeController = TextEditingController();
   final GlobalKey<FormState> formKey = GlobalKey<FormState>();
+  final bool _autoValidate = false;
   final List<String> _urgensiItems = [
     'PENTING MENDESAK',
     'TIDAK PENTING TAPI MENDESAK',
@@ -211,6 +212,9 @@ class _FormAgendaCreateState extends State<FormAgendaCreate> {
   Widget build(BuildContext context) {
     final agendaProvider = context.watch<AgendaProvider>();
 
+    final autovalidateMode = _autoValidate
+        ? AutovalidateMode.always
+        : AutovalidateMode.disabled;
     return Form(
       key: formKey,
       child: Padding(
@@ -247,6 +251,21 @@ class _FormAgendaCreateState extends State<FormAgendaCreate> {
               isRequired: true,
               prefixIcon: Icons.description_outlined,
               keyboardType: TextInputType.multiline,
+              validator: (value) {
+                if (value == null || value.trim().isEmpty) {
+                  return null;
+                }
+                final words = value
+                    .trim()
+                    .split(RegExp(r'\s+'))
+                    .where((s) => s.isNotEmpty)
+                    .toList();
+                if (words.length < 15) {
+                  return 'Keterangan harus terdiri dari minimal 15 kata. (${words.length}/15)';
+                }
+                return null;
+              },
+              autovalidateMode: autovalidateMode,
             ),
             const SizedBox(height: 20),
             DatePickerFieldWidget(

@@ -60,7 +60,7 @@ class _ButtonGetTokenState extends State<ButtonGetToken> {
       height: 40,
       child: ElevatedButton(
         style: ElevatedButton.styleFrom(
-          backgroundColor: AppColors.primaryColor,
+          backgroundColor: AppColors.secondaryColor.withOpacity(0.8),
           shape: RoundedRectangleBorder(
             borderRadius: BorderRadius.circular(12),
           ),

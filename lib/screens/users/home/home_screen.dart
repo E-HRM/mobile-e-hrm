@@ -50,7 +50,7 @@ class _HomeScreenState extends State<HomeScreen> {
             _selectedIndex = index;
           });
         },
-        color: AppColors.primaryColor,
+        color: AppColors.hintColor.withOpacity(0.7),
         buttonBackgroundColor: AppColors.secondaryColor,
         backgroundColor: Colors.transparent,
         height: 60,

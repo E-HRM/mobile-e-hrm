@@ -1,7 +1,6 @@
 class Endpoints {
   static const String baseURL = "https://f54ldwpd-3000.asse.devtunnels.ms/api";
-  static const String faceBaseURL =
-      "https://face-recognition.onestepsolutionbali.com";
+  static const String faceBaseURL = "https://f54ldwpd-8000.asse.devtunnels.ms";
 
   //auth
   static const String login = "$baseURL/mobile/auth/login";
@@ -14,6 +13,30 @@ class Endpoints {
 
   //location
   static const String location = "$baseURL/admin/location";
+
+  //pengajuan cuti
+  static const String kategoriCuti = "$baseURL/admin/kategori-cuti";
+  static const String pengajuanCuti = "$baseURL/mobile/pengajuan-cuti";
+  static String konfigurasiCuti(String userId) =>
+      "$baseURL/mobile/konfigurasi-cuti/$userId";
+
+  // pengajuan izin tukar hari
+  static const String pengajuanIzinTukarHari =
+      "$baseURL/mobile/pengajuan-izin-tukar-hari";
+  static String pengajuanIzinTukarHariDetail(String id) =>
+      "$pengajuanIzinTukarHari/$id";
+  static String pengajuanIzinTukarHariUpdate(String id) =>
+      "$pengajuanIzinTukarHari/$id";
+  static String pengajuanIzinTukarHariDelete(String id) =>
+      "$pengajuanIzinTukarHari/$id";
+
+  // kategori izin
+  static const String kategoriIzinJam = "$baseURL/admin/kategori-izin-jam";
+  static const String kategoriPengajuanSakit = "$baseURL/admin/kategori-sakit";
+  static const String pengajuanIzinJam = "$baseURL/mobile/pengajuan-izin-jam";
+  static String pengajuanIzinJamDetail(String id) => "$pengajuanIzinJam/$id";
+  static const String pengajuanSakit = "$baseURL/mobile/pengajuan-izin-sakit";
+  static String pengajuanSakitDetail(String id) => "$pengajuanSakit/$id";
 
   //departements
   static const String departements = "$baseURL/mobile/departements";
@@ -38,6 +61,7 @@ class Endpoints {
 
   //getuser
   static const String users = "$baseURL/mobile/users";
+  static const String tagHandOverUsers = "$baseURL/mobile/tag-users";
 
   //get-approvers
   static const String getApprovers = "$baseURL/admin/approvers";
@@ -85,4 +109,6 @@ class Endpoints {
       "$baseURL/notifications/$notificationId";
   static const String markAllNotificationsAsRead =
       "$baseURL/notifications/mark-all-as-read";
+
+  static const String mobileCalendar = "$baseURL/mobile/calendar";
 }

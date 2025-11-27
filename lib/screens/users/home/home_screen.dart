@@ -50,7 +50,7 @@ class _HomeScreenState extends State<HomeScreen> {
             _selectedIndex = index;
           });
         },
-        color: AppColors.hintColor.withOpacity(0.7),
+        color: AppColors.primaryColor,
         buttonBackgroundColor: AppColors.secondaryColor,
         backgroundColor: Colors.transparent,
         height: 60,
@@ -101,7 +101,7 @@ class _HomeScreenContentState extends State<HomeScreenContent> {
           child: Column(
             children: const [
               Padding(
-                padding: EdgeInsets.symmetric(vertical: 20, horizontal: 20),
+                padding: EdgeInsets.symmetric(vertical: 10, horizontal: 20),
                 child: HeaderHome(),
               ),
               InformationHome(),
@@ -119,10 +119,20 @@ class _HomeScreenContentState extends State<HomeScreenContent> {
                   ),
                 ),
               ),
-              SizedBox(height: 15),
+              SizedBox(height: 10),
               HomeContent(),
+              SizedBox(height: 10),
+
+              // --- PERUBAHAN DI SINI ---
+              // Tombol absensi dibungkus Padding agar memiliki jarak
+              // konsisten dari tepi layar.
+              Padding(
+                padding: EdgeInsets.symmetric(horizontal: 20.0, vertical: 20),
+                child: AbsensiButton(),
+              ),
+              // Tambah jarak di bagian bawah
               SizedBox(height: 20),
-              AbsensiButton(),
+              // --- AKHIR PERUBAHAN ---
             ],
           ),
         ),

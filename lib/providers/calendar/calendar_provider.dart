@@ -6,6 +6,8 @@ import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import 'package:e_hrm/providers/auth/auth_provider.dart';
 
+enum CalendarViewScope { personal, global }
+
 class CalendarProvider extends ChangeNotifier {
   final ApiService _api = ApiService();
 
@@ -15,10 +17,12 @@ class CalendarProvider extends ChangeNotifier {
   String? _error;
   String? get error => _error;
 
-  List<CalendarItem> _allItems = [];
+  final List<CalendarItem> _allItems = [];
 
-  Map<DateTime, List<CalendarItem>> _events = {};
+  final Map<DateTime, List<CalendarItem>> _events = {};
   Map<DateTime, List<CalendarItem>> get events => _events;
+
+  final Set<String> _fetchedMonths = {};
 
   DateTime _focusedDay = DateTime.now();
   DateTime? _selectedDay;
@@ -26,37 +30,70 @@ class CalendarProvider extends ChangeNotifier {
   DateTime get focusedDay => _focusedDay;
   DateTime? get selectedDay => _selectedDay;
 
+  CalendarViewScope _viewScope = CalendarViewScope.personal;
+  CalendarViewScope get viewScope => _viewScope;
+
+  bool get isGlobalView => _viewScope == CalendarViewScope.global;
+
   void onDaySelected(DateTime selected, DateTime focused) {
     if (!isSameDay(_selectedDay, selected)) {
-      _selectedDay = selected;
+      _selectedDay = _normalizeDate(selected);
       _focusedDay = focused;
       notifyListeners();
     }
   }
 
-  void onPageChanged(DateTime focused) {
+  Future<void> onPageChanged(DateTime focused, {BuildContext? context}) async {
     _focusedDay = focused;
-    fetchCalendarData(focused);
+    await fetchCalendarData(focused, context: context);
   }
 
   List<CalendarItem> getEventsForDay(DateTime day) {
-    final normalized = DateTime(day.year, day.month, day.day);
+    final normalized = _normalizeDate(day);
     return _events[normalized] ?? [];
+  }
+
+  Future<void> toggleViewScope({required BuildContext context}) async {
+    _viewScope = _viewScope == CalendarViewScope.global
+        ? CalendarViewScope.personal
+        : CalendarViewScope.global;
+    _clearAllCache();
+    await fetchCalendarData(_focusedDay, context: context, forceRefresh: true);
+    notifyListeners();
+  }
+
+  Future<void> refreshCurrentMonth(BuildContext context) async {
+    final key = _monthKey(_focusedDay);
+    _fetchedMonths.remove(key);
+    _removeMonthFromCache(_focusedDay);
+    await fetchCalendarData(_focusedDay, context: context, forceRefresh: true);
   }
 
   Future<void> fetchCalendarData(
     DateTime targetMonth, {
     BuildContext? context,
+    bool forceRefresh = false,
   }) async {
     String? userId;
-    if (context != null) {
-      final auth = context.read<AuthProvider>();
-      userId = await resolveUserId(auth, context: context);
-    } else {
-      userId = await loadUserIdFromPrefs();
+
+    if (!isGlobalView) {
+      if (context != null) {
+        final auth = context.read<AuthProvider>();
+        userId = await resolveUserId(auth, context: context);
+      } else {
+        userId = await loadUserIdFromPrefs();
+      }
+      if (userId == null) return;
     }
 
-    if (userId == null) return;
+    final monthKey = _monthKey(targetMonth);
+    if (!forceRefresh && _fetchedMonths.contains(monthKey)) {
+      return;
+    }
+
+    if (forceRefresh) {
+      _removeMonthFromCache(targetMonth);
+    }
 
     _loading = true;
     _error = null;
@@ -64,25 +101,48 @@ class CalendarProvider extends ChangeNotifier {
 
     try {
       final startDate = DateTime(targetMonth.year, targetMonth.month, 1);
-      final endDate = DateTime(targetMonth.year, targetMonth.month + 1, 0);
+      final endDate = DateTime(
+        targetMonth.year,
+        targetMonth.month + 1,
+        0,
+        23,
+        59,
+        59,
+      );
 
-      final params = {
-        'user_id': userId,
-        'from': startDate.toIso8601String(),
-        'to': endDate.toIso8601String(),
-        'page': '1',
-        'perPage': '100',
-      };
+      final List<CalendarItem> allFetchedItems = [];
+      int currentPage = 1;
+      int totalPages = 1;
 
-      final uri = Uri.parse(
-        Endpoints.mobileCalendar,
-      ).replace(queryParameters: params);
-      final response = await _api.fetchDataPrivate(uri.toString());
+      do {
+        final params = <String, String>{
+          'from': startDate.toIso8601String(),
+          'to': endDate.toIso8601String(),
+          'page': currentPage.toString(),
+          'perPage': '100',
+        };
 
-      final calendarResponse = CalendarResponse.fromJson(response);
+        if (!isGlobalView) {
+          params['user_id'] = userId!;
+        }
 
-      _allItems = calendarResponse.data;
-      _groupEventsByDate(_allItems);
+        final uri = Uri.parse(
+          Endpoints.mobileCalendar,
+        ).replace(queryParameters: params);
+
+        final response = await _api.fetchDataPrivate(uri.toString());
+        final calendarResponse = CalendarResponse.fromJson(response);
+
+        allFetchedItems.addAll(calendarResponse.data);
+
+        totalPages = calendarResponse.meta.totalPages;
+        currentPage++;
+      } while (currentPage <= totalPages);
+
+      _allItems.addAll(allFetchedItems);
+      _groupEventsByDate(allFetchedItems);
+
+      _fetchedMonths.add(monthKey);
     } catch (e) {
       _error = e.toString();
     } finally {
@@ -91,28 +151,62 @@ class CalendarProvider extends ChangeNotifier {
     }
   }
 
-  void _groupEventsByDate(List<CalendarItem> items) {
-    _events = {};
-    for (var item in items) {
-      // Menggunakan tanggal mulai sebagai key
-      final dateKey = DateTime(
-        item.start.year,
-        item.start.month,
-        item.start.day,
-      );
+  void _groupEventsByDate(List<CalendarItem> newItems) {
+    for (final item in newItems) {
+      DateTime current = _normalizeDate(item.start);
+      final DateTime end = _normalizeDate(item.end);
 
-      if (_events[dateKey] == null) {
-        _events[dateKey] = [];
+      while (current.isBefore(end) || isSameDay(current, end)) {
+        final list = _events.putIfAbsent(current, () => <CalendarItem>[]);
+
+        final exists = list.any((e) => e.id == item.id && e.type == item.type);
+        if (!exists) {
+          list.add(item);
+        }
+
+        current = current.add(const Duration(days: 1));
       }
-      _events[dateKey]!.add(item);
-
-      // Jika event lebih dari 1 hari, tambahkan ke hari-hari berikutnya (opsional, tergantung logika UI)
-      // Logika di sini sederhana, hanya map berdasarkan start date untuk marker
     }
+  }
+
+  void _removeMonthFromCache(DateTime month) {
+    final start = DateTime(month.year, month.month, 1);
+    final end = DateTime(month.year, month.month + 1, 0);
+
+    final keysToRemove = <DateTime>[];
+    for (final key in _events.keys) {
+      if (!key.isBefore(start) && !key.isAfter(end)) {
+        keysToRemove.add(key);
+      }
+    }
+    for (final k in keysToRemove) {
+      _events.remove(k);
+    }
+
+    _allItems.removeWhere((item) {
+      final s = _normalizeDate(item.start);
+      return (!s.isBefore(start) && !s.isAfter(end));
+    });
+  }
+
+  void _clearAllCache() {
+    _events.clear();
+    _allItems.clear();
+    _fetchedMonths.clear();
+  }
+
+  DateTime _normalizeDate(DateTime date) {
+    return DateTime(date.year, date.month, date.day);
   }
 
   bool isSameDay(DateTime? a, DateTime? b) {
     if (a == null || b == null) return false;
     return a.year == b.year && a.month == b.month && a.day == b.day;
+  }
+
+  String _monthKey(DateTime d) {
+    final scope = isGlobalView ? 'global' : 'personal';
+    final mm = d.month.toString().padLeft(2, '0');
+    return '$scope-${d.year}-$mm';
   }
 }

@@ -12,7 +12,7 @@ class ApproversPengajuanProvider extends ChangeNotifier {
     bool? initialIncludeDeleted,
   }) : roles = (initialRoles?.isNotEmpty ?? false)
            ? List<String>.from(initialRoles!)
-           : <String>['HR', 'DIREKTUR', 'OPERASIONAL', 'SUPERADMIN'],
+           : <String>['SUPERADMIN'],
        includeDeleted = initialIncludeDeleted ?? false;
 
   final int defaultPageSize;

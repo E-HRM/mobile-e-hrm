@@ -1,6 +1,7 @@
 class Endpoints {
-  static const String baseURL = "https://f54ldwpd-3000.asse.devtunnels.ms/api";
-  static const String faceBaseURL = "https://f54ldwpd-8000.asse.devtunnels.ms";
+  static const String baseURL = "https://e-hrm.onestepsolutionbali.com/api";
+  static const String faceBaseURL =
+      "https://face-recognition.onestepsolutionbali.com";
 
   //auth
   static const String login = "$baseURL/mobile/auth/login";
@@ -39,7 +40,10 @@ class Endpoints {
   static String pengajuanSakitDetail(String id) => "$pengajuanSakit/$id";
 
   //departements
-  static const String departements = "$baseURL/mobile/departements";
+  static const String departements = "$baseURL/admin/departements";
+
+  //kategori-keperluan-payment
+  static const String kategoriKeperluan = "$baseURL/admin/kategori-keperluan";
 
   //kunjungan
   static const String kategoriKunjungan = "$baseURL/admin/kategori-kunjungan";
@@ -96,7 +100,7 @@ class Endpoints {
   static String get absensiCheckout => "$faceBaseURL/api/absensi/checkout";
   static String get absensiStatus => "$faceBaseURL/api/absensi/status";
 
-  //istirahats
+  //istirahat
   static const String istirahatStart =
       "$faceBaseURL/api/absensi/istirahat/start";
   static const String istirahatEnd = "$faceBaseURL/api/absensi/istirahat/end";
@@ -111,4 +115,20 @@ class Endpoints {
       "$baseURL/notifications/mark-all-as-read";
 
   static const String mobileCalendar = "$baseURL/mobile/calendar";
+
+  //payment
+  static const String payment = "$baseURL/mobile/payment";
+  static String paymentDetail(String id) => "$payment/$id";
+
+  //reimburse
+  static const String reimburse = "$baseURL/mobile/reimburse";
+  static String reimburseDetail(String id) => "$reimburse/$id";
+
+  //pocket money
+  static const String pocketMoney = "$baseURL/mobile/pocket-money";
+  static String pocketMoneyDetail(String id) => "$pocketMoney/$id";
+
+  // SOP perusahaan
+  static const String sopPerusahaan = "$baseURL/admin/sop-perusahaan";
+  static const String favouritePinSop = "$baseURL/mobile/favourite-pin-sop";
 }

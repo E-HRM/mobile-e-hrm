@@ -543,13 +543,15 @@ class AgendaKerjaProvider extends ChangeNotifier {
     String? status,
     DateTime? startDate,
     DateTime? endDate,
+    List<DateTime>? startDates,
+    List<DateTime>? endDates,
     int? durationSeconds,
     String? idAbsensi,
     String? kebutuhanAgenda,
   }) async {
     _setSaving(true);
     try {
-      // PERUBAHAN DI SINI
+      // Normalisasi kebutuhan agenda (API hanya melakukan trim, Provider melakukan UpperCase)
       final kebutuhanAgendaValue = kebutuhanAgenda != null
           ? _normalizeKebutuhanAgendaString(kebutuhanAgenda)
           : null;
@@ -558,7 +560,11 @@ class AgendaKerjaProvider extends ChangeNotifier {
         'id_user': idUser.trim(),
         'id_agenda': idAgenda.trim(),
         'deskripsi_kerja': deskripsiKerja.trim(),
-        if (status != null) 'status': status.toLowerCase(),
+        'status': status?.toLowerCase() ?? 'teragenda',
+        if (startDates != null)
+          'start_dates': startDates.map((d) => d.toIso8601String()).toList(),
+        if (endDates != null)
+          'end_dates': endDates.map((d) => d.toIso8601String()).toList(),
         if (startDate != null) 'start_date': startDate.toIso8601String(),
         if (endDate != null) 'end_date': endDate.toIso8601String(),
         if (durationSeconds != null) 'duration_seconds': durationSeconds,
@@ -567,33 +573,42 @@ class AgendaKerjaProvider extends ChangeNotifier {
       });
 
       final res = await _api.postDataPrivate(Endpoints.agendaKerjaCrud, body);
-
       final dataRaw = res['data'];
-      if (dataRaw is! Map) {
-        throw Exception('Respon server tidak valid saat membuat agenda kerja');
+
+      Data? firstCreated;
+
+      // --- PERBAIKAN: SESUAIKAN DENGAN RESPON LIST DARI API ---
+      if (dataRaw is List) {
+        // Jika API mengembalikan List (karena multi-date atau transaction)
+        final List<Data> createdList = dataRaw
+            .map((e) => Data.fromJson(Map<String, dynamic>.from(e)))
+            .toList();
+
+        if (createdList.isNotEmpty) {
+          firstCreated = createdList.first;
+          // Masukkan semua agenda baru ke dalam list lokal
+          for (var item in createdList) {
+            if (_matchesCurrentFilters(item)) {
+              items.insert(0, item);
+              if (meta != null) meta!.total = (meta!.total ?? 0) + 1;
+            }
+          }
+        }
+      } else if (dataRaw is Map) {
+        // Jika API (mungkin versi lain) mengembalikan Map tunggal
+        firstCreated = Data.fromJson(Map<String, dynamic>.from(dataRaw));
+        if (_matchesCurrentFilters(firstCreated)) {
+          items.insert(0, firstCreated);
+          if (meta != null) meta!.total = (meta!.total ?? 0) + 1;
+        }
+      } else {
+        throw Exception('Respon server tidak valid (data bukan List atau Map)');
       }
 
-      final created = Data.fromJson(Map<String, dynamic>.from(dataRaw));
       message = res['message'] as String? ?? 'Agenda kerja berhasil dibuat.';
       error = null;
-
-      if (_matchesCurrentFilters(created)) {
-        final previousItems = items;
-        final previousLength = previousItems.length;
-        final filtered = previousItems
-            .where((e) => e.idAgendaKerja != created.idAgendaKerja)
-            .toList();
-        final bool replaced = filtered.length != previousLength;
-        items = <Data>[created, ...filtered];
-        final metaValue = meta;
-        if (metaValue != null && !replaced) {
-          final currentTotal = metaValue.total ?? previousLength;
-          metaValue.total = currentTotal + 1;
-        }
-      }
-
       notifyListeners();
-      return created;
+      return firstCreated;
     } catch (e) {
       message = null;
       error = e.toString();

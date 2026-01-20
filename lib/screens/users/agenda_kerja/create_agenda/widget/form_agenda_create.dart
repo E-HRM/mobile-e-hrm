@@ -1,11 +1,11 @@
 // lib/screens/users/agenda_kerja/create_agenda/widget/form_agenda_create.dart
 // ignore_for_file: deprecated_member_use
 import 'package:e_hrm/contraints/colors.dart';
-import 'package:e_hrm/dto/agenda/agenda.dart'; // <-- Import DTO Agenda
+import 'package:e_hrm/dto/agenda/agenda.dart';
 import 'package:e_hrm/providers/agenda/agenda_provider.dart';
 import 'package:e_hrm/providers/agenda_kerja/agenda_kerja_provider.dart';
 import 'package:e_hrm/providers/auth/auth_provider.dart';
-import 'package:e_hrm/shared_widget/agenda_selection_field.dart'; // <-- Import Field Baru
+import 'package:e_hrm/shared_widget/agenda_selection_field.dart';
 import 'package:e_hrm/shared_widget/date_picker_field_widget.dart';
 import 'package:e_hrm/shared_widget/dropdown_field_widget.dart';
 import 'package:e_hrm/shared_widget/text_field_widget.dart';
@@ -13,6 +13,7 @@ import 'package:e_hrm/shared_widget/time_picker_field_widget.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/scheduler.dart';
 import 'package:google_fonts/google_fonts.dart';
+import 'package:intl/intl.dart';
 import 'package:provider/provider.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 
@@ -25,21 +26,26 @@ class FormAgendaCreate extends StatefulWidget {
 
 class _FormAgendaCreateState extends State<FormAgendaCreate> {
   final TextEditingController deskripsiController = TextEditingController();
-  final TextEditingController calendarController = TextEditingController();
   final TextEditingController startTimeController = TextEditingController();
   final TextEditingController endTimeController = TextEditingController();
   final GlobalKey<FormState> formKey = GlobalKey<FormState>();
-  bool _autoValidate = false; // Ubah ke false
+
+  bool _autoValidate = false;
+
   final List<String> _urgensiItems = [
     'PENTING MENDESAK',
     'TIDAK PENTING TAPI MENDESAK',
     'PENTING TAK MENDESAK',
     'TIDAK PENTING TIDAK MENDESAK',
   ];
+
   String _selectedStatus = _statusOptions.first.value;
-  // String? _selectedAgendaId; // <-- Ganti ini
-  AgendaItem? _selectedAgenda; // <-- Dengan ini (simpan objek AgendaItem)
-  DateTime? _selectedDate;
+  AgendaItem? _selectedAgenda;
+
+  final List<TextEditingController> _dateControllers =
+      <TextEditingController>[];
+  final List<DateTime?> _dateValues = <DateTime?>[];
+
   TimeOfDay? _startTime;
   TimeOfDay? _endTime;
 
@@ -49,11 +55,11 @@ class _FormAgendaCreateState extends State<FormAgendaCreate> {
   @override
   void initState() {
     super.initState();
-    // Pre-fill the date from the provider if it's already available
+
     final initialProvider = context.read<AgendaKerjaProvider>();
-    if (initialProvider.currentDate != null) {
-      _selectedDate = initialProvider.currentDate;
-    }
+    final initialDate = initialProvider.currentDate;
+
+    _initDateRows(initialDate);
 
     WidgetsBinding.instance.addPostFrameCallback((_) {
       final agendaProvider = context.read<AgendaProvider>();
@@ -61,6 +67,18 @@ class _FormAgendaCreateState extends State<FormAgendaCreate> {
         agendaProvider.fetch();
       }
     });
+  }
+
+  void _initDateRows(DateTime? initialDate) {
+    _dateControllers.clear();
+    _dateValues.clear();
+
+    _dateControllers.add(TextEditingController());
+    _dateValues.add(initialDate);
+
+    if (initialDate != null) {
+      _dateControllers.first.text = _formatDate(initialDate);
+    }
   }
 
   @override
@@ -73,7 +91,6 @@ class _FormAgendaCreateState extends State<FormAgendaCreate> {
       _agendaKerjaProvider = agendaKerjaProvider;
       _agendaKerjaProvider?.addListener(_handleAgendaKerjaChanged);
 
-      // Jadwalkan sinkronisasi setelah build selesai
       SchedulerBinding.instance.addPostFrameCallback((_) {
         if (mounted) {
           _syncFromAgendaKerjaProvider(agendaKerjaProvider);
@@ -86,15 +103,15 @@ class _FormAgendaCreateState extends State<FormAgendaCreate> {
   void dispose() {
     _agendaKerjaProvider?.removeListener(_handleAgendaKerjaChanged);
     deskripsiController.dispose();
-    calendarController.dispose();
     startTimeController.dispose();
     endTimeController.dispose();
+    for (final c in _dateControllers) {
+      c.dispose();
+    }
     super.dispose();
   }
 
   void _handleAgendaKerjaChanged() {
-    // --- PERBAIKAN UNTUK KEAMANAN ---
-    // Pastikan listener juga menjalankan setState setelah build.
     WidgetsBinding.instance.addPostFrameCallback((_) {
       if (mounted && _agendaKerjaProvider != null) {
         _syncFromAgendaKerjaProvider(_agendaKerjaProvider!);
@@ -104,57 +121,92 @@ class _FormAgendaCreateState extends State<FormAgendaCreate> {
 
   void _syncFromAgendaKerjaProvider(AgendaKerjaProvider provider) {
     final providerDate = provider.currentDate;
+    if (providerDate == null) return;
+
     var shouldUpdate = false;
 
-    if (providerDate != null &&
-        (_selectedDate == null || !_isSameDay(_selectedDate!, providerDate))) {
-      _selectedDate = providerDate;
+    if (_dateValues.isEmpty) {
+      _initDateRows(providerDate);
       shouldUpdate = true;
+    } else {
+      final first = _dateValues.first;
+      final isDifferent = first == null
+          ? true
+          : !_isSameDay(first, providerDate);
+
+      if (isDifferent || _dateValues.length != 1) {
+        for (final c in _dateControllers) {
+          c.dispose();
+        }
+        _initDateRows(providerDate);
+        shouldUpdate = true;
+      }
     }
 
     if (shouldUpdate && mounted) {
-      // Pemanggilan setState sekarang aman karena berada di dalam post-frame callback
       setState(() {});
     }
   }
 
   Future<void> _submit() async {
     final formState = formKey.currentState;
-    if (formState == null) return; // Tambah pengecekan null
+    if (formState == null) return;
 
-    // Set autoValidate sebelum validasi
     setState(() => _autoValidate = true);
 
     if (!formState.validate()) return;
 
-    // Validasi lain tetap sama
     if (_selectedAgenda == null) {
-      // <-- Cek objek AgendaItem
       _showSnackBar('Agenda wajib dipilih.', true);
       return;
     }
-    // ... (validasi tanggal, jam, urgensi tetap sama) ...
-    if (_selectedDate == null) {
+
+    final dates = _dateValues.whereType<DateTime>().toList();
+    if (dates.isEmpty || dates.length != _dateValues.length) {
       _showSnackBar('Tanggal agenda wajib diisi.', true);
       return;
     }
+
+    final uniqueDays = <String>{};
+    for (final d in dates) {
+      final key = '${d.year}-${d.month}-${d.day}';
+      if (!uniqueDays.add(key)) {
+        _showSnackBar('Tanggal tidak boleh duplikat.', true);
+        return;
+      }
+    }
+
     if (_startTime == null || _endTime == null) {
       _showSnackBar('Jam mulai dan selesai wajib diisi.', true);
       return;
     }
+
     if (_selectedUrgensi == null || _selectedUrgensi!.isEmpty) {
       _showSnackBar('Urgensi wajib dipilih.', true);
       return;
     }
 
-    final startDateTime = _combineDateTime(_selectedDate!, _startTime!);
-    final endDateTime = _combineDateTime(_selectedDate!, _endTime!);
-    if (!endDateTime.isAfter(startDateTime)) {
-      _showSnackBar('Jam selesai harus lebih besar dari jam mulai.', true);
-      return;
+    final sortedDates = List<DateTime>.of(dates)
+      ..sort((a, b) => a.compareTo(b));
+
+    final startDates = sortedDates
+        .map((date) => _combineDateTime(date, _startTime!))
+        .toList();
+    final endDates = sortedDates
+        .map((date) => _combineDateTime(date, _endTime!))
+        .toList();
+
+    for (var i = 0; i < startDates.length; i += 1) {
+      if (!endDates[i].isAfter(startDates[i])) {
+        _showSnackBar('Jam selesai harus lebih besar dari jam mulai.', true);
+        return;
+      }
     }
 
-    // ... (ensureUserId tetap sama) ...
+    final durationSeconds = endDates.first
+        .difference(startDates.first)
+        .inSeconds;
+
     final auth = context.read<AuthProvider>();
     final userId = await _ensureUserId(auth);
     if (!mounted) return;
@@ -167,12 +219,12 @@ class _FormAgendaCreateState extends State<FormAgendaCreate> {
     final provider = context.read<AgendaKerjaProvider>();
     final created = await provider.create(
       idUser: userId,
-      idAgenda: _selectedAgenda!.idAgenda, // <-- Ambil ID dari objek
+      idAgenda: _selectedAgenda!.idAgenda,
       deskripsiKerja: deskripsiController.text,
       status: _selectedStatus,
-      startDate: startDateTime,
-      endDate: endDateTime,
-      durationSeconds: endDateTime.difference(startDateTime).inSeconds,
+      startDates: startDates,
+      endDates: endDates,
+      durationSeconds: durationSeconds,
       kebutuhanAgenda: _selectedUrgensi,
     );
 
@@ -182,7 +234,10 @@ class _FormAgendaCreateState extends State<FormAgendaCreate> {
     final errorMessage = provider.error ?? 'Gagal membuat agenda kerja.';
 
     if (created != null) {
-      _showSnackBar(message, false);
+      final successMessage = sortedDates.length > 1
+          ? 'Agenda kerja berhasil dibuat untuk ${sortedDates.length} tanggal.'
+          : message;
+      _showSnackBar(successMessage, false);
       Navigator.of(context).pop(true);
     } else {
       _showSnackBar(errorMessage, true);
@@ -221,22 +276,40 @@ class _FormAgendaCreateState extends State<FormAgendaCreate> {
     return a.year == b.year && a.month == b.month && a.day == b.day;
   }
 
+  String _formatDate(DateTime date) {
+    final formatter = DateFormat('dd MMMM yyyy', 'id_ID');
+    return formatter.format(date);
+  }
+
+  void _addDateRow() {
+    setState(() {
+      _dateControllers.add(TextEditingController());
+      _dateValues.add(null);
+    });
+  }
+
+  void _removeDateRow(int index) {
+    if (_dateControllers.length <= 1) return;
+    setState(() {
+      _dateControllers[index].dispose();
+      _dateControllers.removeAt(index);
+      _dateValues.removeAt(index);
+    });
+  }
+
   @override
   Widget build(BuildContext context) {
-    // final agendaProvider = context.watch<AgendaProvider>(); // Tidak perlu watch lagi di sini
-
     final autovalidateMode = _autoValidate
         ? AutovalidateMode.always
         : AutovalidateMode.disabled;
+
     return Form(
       key: formKey,
-      // Autovalidate di form agar semua field terpengaruh
       autovalidateMode: autovalidateMode,
       child: Padding(
         padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 24),
         child: Column(
           children: [
-            // --- GANTI DROPDOWN DENGAN FIELD BARU ---
             AgendaSelectionField(
               backgroundColor: AppColors.textColor,
               borderColor: AppColors.textDefaultColor,
@@ -245,7 +318,6 @@ class _FormAgendaCreateState extends State<FormAgendaCreate> {
               isRequired: true,
               onAgendaSelected: (selected) {
                 setState(() => _selectedAgenda = selected);
-                // Trigger validasi ulang jika form sudah pernah divalidasi
                 if (_autoValidate) {
                   formKey.currentState?.validate();
                 }
@@ -256,11 +328,7 @@ class _FormAgendaCreateState extends State<FormAgendaCreate> {
                 }
                 return null;
               },
-              // autovalidateMode: autovalidateMode, // Dihapus dari sini
             ),
-            // --- AKHIR PERGANTIAN ---
-
-            // Loading indicator untuk AgendaProvider bisa ditaruh di sini jika perlu
             Consumer<AgendaProvider>(
               builder: (context, agendaProv, _) {
                 if (agendaProv.loading && agendaProv.items.isEmpty) {
@@ -272,7 +340,6 @@ class _FormAgendaCreateState extends State<FormAgendaCreate> {
                 return const SizedBox.shrink();
               },
             ),
-
             const SizedBox(height: 20),
             TextFieldWidget(
               backgroundColor: AppColors.textColor,
@@ -283,17 +350,125 @@ class _FormAgendaCreateState extends State<FormAgendaCreate> {
               isRequired: true,
               prefixIcon: Icons.description_outlined,
               keyboardType: TextInputType.multiline,
-              maxLines: 3, // Perbolehkan multiline
+              maxLines: 3,
             ),
             const SizedBox(height: 20),
-            DatePickerFieldWidget(
-              backgroundColor: AppColors.textColor,
-              borderColor: AppColors.textDefaultColor,
-              label: 'Tanggal Agenda',
-              controller: calendarController,
-              initialDate: _selectedDate,
-              onDateChanged: (date) => setState(() => _selectedDate = date),
-              isRequired: true,
+            Container(
+              decoration: BoxDecoration(
+                color: AppColors.textColor.withOpacity(0.05),
+                borderRadius: BorderRadius.circular(12),
+                border: Border.all(
+                  color: AppColors.textDefaultColor.withOpacity(0.2),
+                ),
+              ),
+              padding: const EdgeInsets.all(12),
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Text(
+                    "Tanggal Agenda",
+                    style: GoogleFonts.poppins(
+                      fontSize: 12,
+                      fontWeight: FontWeight.w600,
+                      color: AppColors.textDefaultColor.withOpacity(0.7),
+                    ),
+                  ),
+                  const SizedBox(height: 12),
+                  Column(
+                    children: List<Widget>.generate(_dateControllers.length, (
+                      index,
+                    ) {
+                      final canRemove = _dateControllers.length > 1;
+                      final isLast = index == _dateControllers.length - 1;
+
+                      return Padding(
+                        padding: EdgeInsets.only(
+                          bottom: index == _dateControllers.length - 1 ? 0 : 12,
+                        ),
+                        child: Row(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            Expanded(
+                              child: DatePickerFieldWidget(
+                                backgroundColor: AppColors.textColor,
+                                borderColor: AppColors.textDefaultColor,
+                                label: 'Pilih Tanggal',
+                                controller: _dateControllers[index],
+                                initialDate: _dateValues[index],
+                                onDateChanged: (date) {
+                                  if (date == null) return;
+                                  setState(() {
+                                    _dateValues[index] = date;
+                                    _dateControllers[index].text = _formatDate(
+                                      date,
+                                    );
+                                  });
+                                },
+                                isRequired: true,
+                                validator: (_) {
+                                  if (_dateValues.length <= index ||
+                                      _dateValues[index] == null) {
+                                    return 'Tanggal wajib diisi';
+                                  }
+                                  return null;
+                                },
+                              ),
+                            ),
+                            const SizedBox(width: 10),
+                            Column(
+                              children: [
+                                SizedBox(
+                                  height: 48,
+                                  width: 48,
+                                  child: ElevatedButton(
+                                    onPressed: isLast ? _addDateRow : null,
+                                    style: ElevatedButton.styleFrom(
+                                      backgroundColor: AppColors.primaryColor,
+                                      padding: EdgeInsets.zero,
+                                      shape: RoundedRectangleBorder(
+                                        borderRadius: BorderRadius.circular(12),
+                                      ),
+                                      elevation: 0,
+                                    ),
+                                    child: const Icon(
+                                      Icons.add,
+                                      color: AppColors.textColor,
+                                      size: 20,
+                                    ),
+                                  ),
+                                ),
+                                const SizedBox(height: 8),
+                                SizedBox(
+                                  height: 48,
+                                  width: 48,
+                                  child: ElevatedButton(
+                                    onPressed: canRemove
+                                        ? () => _removeDateRow(index)
+                                        : null,
+                                    style: ElevatedButton.styleFrom(
+                                      backgroundColor: AppColors.errorColor,
+                                      padding: EdgeInsets.zero,
+                                      shape: RoundedRectangleBorder(
+                                        borderRadius: BorderRadius.circular(12),
+                                      ),
+                                      elevation: 0,
+                                    ),
+                                    child: const Icon(
+                                      Icons.remove,
+                                      color: AppColors.textColor,
+                                      size: 20,
+                                    ),
+                                  ),
+                                ),
+                              ],
+                            ),
+                          ],
+                        ),
+                      );
+                    }),
+                  ),
+                ],
+              ),
             ),
             const SizedBox(height: 20),
             Row(
@@ -307,8 +482,7 @@ class _FormAgendaCreateState extends State<FormAgendaCreate> {
                     controller: startTimeController,
                     onChanged: (time) => setState(() => _startTime = time),
                     isRequired: true,
-                    // Tambahkan validator untuk time picker jika perlu
-                    validator: (value) {
+                    validator: (_) {
                       if (_startTime == null) return 'Wajib diisi';
                       return null;
                     },
@@ -323,10 +497,8 @@ class _FormAgendaCreateState extends State<FormAgendaCreate> {
                     controller: endTimeController,
                     onChanged: (time) => setState(() => _endTime = time),
                     isRequired: true,
-                    // Tambahkan validator untuk time picker jika perlu
-                    validator: (value) {
+                    validator: (_) {
                       if (_endTime == null) return 'Wajib diisi';
-                      // Validasi tambahan: jam selesai > jam mulai
                       if (_startTime != null && _endTime != null) {
                         final startMinutes =
                             _startTime!.hour * 60 + _startTime!.minute;
@@ -361,8 +533,6 @@ class _FormAgendaCreateState extends State<FormAgendaCreate> {
                   _selectedUrgensi = newValue;
                 });
               },
-              // Validator sudah otomatis ditangani oleh DropdownFieldWidget
-              // validator: (value) => ...
             ),
             const SizedBox(height: 20),
             DropdownFieldWidget<String>(
